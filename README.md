@@ -8,14 +8,14 @@ Windows
 
 ```cmd
 cd /d %USERPROFILE%\Documents\WindowsPowerShell\Modules
-git clone --recurse-submodules https://github.com/psteniusubi/Ubisecure.QueryString.git
+git clone https://github.com/psteniusubi/Ubisecure.QueryString.git
 ```
 
 Linux
 
 ```bash
 cd ~/.local/share/powershell/Modules
-git clone --recurse-submodules https://github.com/psteniusubi/Ubisecure.QueryString.git
+git clone https://github.com/psteniusubi/Ubisecure.QueryString.git
 ```
 
 ## Example use
