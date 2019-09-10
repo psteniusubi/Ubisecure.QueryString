@@ -40,7 +40,7 @@ function Add-QueryString {
                 $Values.Keys | % {
                     $key = $_
                     $Values[$key] | % {
-                        #Write-Verbose "$key $_"
+                        Write-Verbose "$key $_"
                         $out.Value.Add($key, $_)
                     }
                 }
@@ -91,14 +91,18 @@ function ConvertTo-QueryString {
         if($QueryString) {
             $out += $QueryString.Value.AllKeys | % { 
 			    $key = $_
-			    $value = $QueryString.Value[$key]
-                [System.Net.WebUtility]::UrlEncode($key),[System.Net.WebUtility]::UrlEncode($value) -join "=" 
+			    $QueryString.Value.GetValues($key) | % {
+                    $value = $_
+                    [System.Net.WebUtility]::UrlEncode($key),[System.Net.WebUtility]::UrlEncode($value) -join "=" 
+                }
             }
         } elseif($InputObject) {
             $out += $InputObject.Keys | % { 
 			    $key = $_
-			    $value = $InputObject[$key]
-                [System.Net.WebUtility]::UrlEncode($key),[System.Net.WebUtility]::UrlEncode($value) -join "=" 
+			    $InputObject[$key] | % {
+                    $value = $_
+                    [System.Net.WebUtility]::UrlEncode($key),[System.Net.WebUtility]::UrlEncode($value) -join "=" 
+                }
             }
         }
     }
