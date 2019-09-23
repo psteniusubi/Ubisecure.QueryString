@@ -22,6 +22,28 @@ function IsEmpty {
     }
 }
 
+function ToString {
+    param(
+        [Parameter(Position=0,Mandatory=$true,ValueFromPipeline=$true)]
+        [AllowNull()]
+        [AllowEmptyString()]
+        [AllowEmptyCollection()]
+        [object]
+        $InputObject
+    )
+    process {
+        if($InputObject -eq $null) { return }
+        elseif($InputObject -is [string]) { return $InputObject }
+        elseif($InputObject -is [System.Collections.IEnumerable]) { 
+            foreach($i in $InputObject.GetEnumerator()) {
+                $i | ToString
+            }
+            return
+        }
+        else { return $InputObject.ToString() }
+    }
+}
+
 function Add-QueryString {
     [CmdletBinding(DefaultParameterSetName="KeyValue")]
     param(
@@ -53,10 +75,16 @@ function Add-QueryString {
                 #Write-Host "Add-QueryString: '$Key'='$Value'"
                 $list = [System.Collections.ArrayList]::new()
                 if(-not (IsEmpty $InputObject[$Key])) {
-                    $InputObject[$Key] | Out-String -Stream | % { $null = $list.Add($_) }
+                    $InputObject[$Key] | ToString | % { 
+                        #Write-Host "InputObject: list.Add($_)"
+                        $null = $list.Add($_) 
+                    }
                 }
                 if(-not (IsEmpty $Value)) {
-                    $Value | Out-String -Stream | % { $null = $list.Add($_) }
+                    $Value | ToString | % { 
+                        #Write-Host "Value: list.Add($_)"
+                        $null = $list.Add($_) 
+                    }
                 }
                 $InputObject[$Key] = $list
             }
@@ -67,7 +95,7 @@ function Add-QueryString {
                     if(IsEmpty $list) {
                         $list = @()
                     } else {
-                        $list = $list | Out-String -Stream
+                        $list = $list | ToString 
                     }
                     $InputObject = $InputObject | Add-QueryString -Key $key -Value $list
                 }
@@ -97,7 +125,7 @@ function ConvertTo-QueryString {
             if(IsEmpty $list) {
                 $list = @( [string]::Empty )
             } else {
-                $list = $list | Out-String -Stream
+                $list = $list | ToString 
             }
             foreach($value in $list) {
                 if([string]::IsNullOrEmpty($key)) {
@@ -134,14 +162,14 @@ function Select-QueryString {
     )
     process {
         if($InputObject -eq $null) { return }
-        $Key | Out-String -Stream | % { 
+        $Key | ToString | % { 
             $list = $InputObject[$_] 
             if(IsEmpty $list) {
                 [string]::Empty
             } else {
                 $list
             }
-        } | Out-String -Stream
+        } | ToString 
     }
 }
 
@@ -162,13 +190,13 @@ function ConvertFrom-QueryString {
         $InputObject = $InputObject -replace "^[^\?]*\?",""
         $InputObject -split "&" | % {
             if($_ -match "^([^=]*)(=(.*))?$") {
-                $key = $Matches[1]
-                $value = $Matches[3]
+                $key = [System.Net.WebUtility]::UrlDecode($Matches[1])
+                $value = [System.Net.WebUtility]::UrlDecode($Matches[3])
                 #Write-Host "ConvertFrom-QueryString: Matches.Count = $($Matches.Count)"
                 switch($Matches.Count) {
                     2 { 
                         #Write-Host "ConvertFrom-QueryString: ''='$key'"
-                        $t = $t | Add-QueryString -Key ([string]::Empty) -Value $key 
+                        $t = $t | Add-QueryString -Key ([string]::Empty) -Value $key
                     }
                     4 { 
                         #Write-Host "ConvertFrom-QueryString: '$key'='$value'"
