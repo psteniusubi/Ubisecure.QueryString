@@ -1,133 +1,185 @@
-
 function New-QueryString {
     [CmdletBinding()]
-    param()
-    Process {
-        [PSCustomObject] @{
-            "PSTypeName" = "QueryString";
-            "Value" = [System.Collections.Specialized.NameValueCollection]::new();
-        }
+    param(
+    )
+    process {
+        [System.Collections.Specialized.OrderedDictionary]::new()
+    }
+}
+
+function IsEmpty {
+    param(
+        [Parameter(Position=0,Mandatory=$true)]
+        [AllowNull()]
+        [object]
+        $InputObject
+    )
+    process {
+        if($InputObject -eq $null) { return $true }
+        if($InputObject -is [string]) { return $false }
+        if($InputObject -is [System.Collections.IEnumerable]) { return -not $InputObject.GetEnumerator().MoveNext() }
+        return $false
     }
 }
 
 function Add-QueryString {
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName="KeyValue")]
     param(
-        [parameter(Mandatory=$true,Position=0,ParameterSetName="NameValue")] 
-        [string] 
-        $Name,
+        [parameter(Mandatory=$true,Position=2,ValueFromPipeline=$true)]
+        [System.Collections.IDictionary]
+        $InputObject = (New-QueryString),
 
-        [parameter(Mandatory=$true,Position=1,ParameterSetName="NameValue")] 
-        [AllowEmptyString()] 
-        [string] 
+        [parameter(Mandatory=$true,Position=0,ParameterSetName="KeyValue")]
+        [AllowNull()]
+        [AllowEmptyString()]
+        [Alias("Name")]
+        [string]
+        $Key,
+
+        [parameter(Mandatory=$true,Position=1,ParameterSetName="KeyValue")]
+        [AllowNull()]
+        [AllowEmptyString()]
+        [AllowEmptyCollection()]
+        [string[]]
         $Value,
-    
-        [parameter(Mandatory=$true,Position=0,ParameterSetName="Hashtable")] 
-        [hashtable] 
-        $Values,
-    
-        [parameter(Mandatory=$true,Position=2,ValueFromPipeline=$true)] 
-        [PSTypeName("QueryString")] 
-        $QueryString 
+
+        [parameter(Mandatory=$true,Position=0,ParameterSetName="Values")]
+        [System.Collections.IDictionary]
+        $Values
     )
-    Begin {
-        $out = New-QueryString
-        switch ($PsCmdlet.ParameterSetName) {
-            "NameValue" {
-                $out.Value.Add($Name, $Value)
+    process {
+        switch($PSCmdlet.ParameterSetName) {
+            "KeyValue" {
+                #Write-Host "Add-QueryString: '$Key'='$Value'"
+                $list = [System.Collections.ArrayList]::new()
+                if(-not (IsEmpty $InputObject[$Key])) {
+                    $InputObject[$Key] | Out-String -Stream | % { $null = $list.Add($_) }
+                }
+                if(-not (IsEmpty $Value)) {
+                    $Value | Out-String -Stream | % { $null = $list.Add($_) }
+                }
+                $InputObject[$Key] = $list
             }
-            "Hashtable" {
-                $Values.Keys | % {
-                    $key = $_
-                    $Values[$key] | % {
-                        Write-Verbose "$key $_"
-                        $out.Value.Add($key, $_)
+            "Values" {
+                foreach($kv in $Values.GetEnumerator()) {
+                    $key = $kv.Key
+                    $list = $kv.Value
+                    if(IsEmpty $list) {
+                        $list = @()
+                    } else {
+                        $list = $list | Out-String -Stream
                     }
+                    $InputObject = $InputObject | Add-QueryString -Key $key -Value $list
                 }
             }
-        }        
-    }
-    Process {
-        $out.Value.Add($QueryString.Value)
-    }
-    End {
-        return $out
-    }
-}
-
-function Select-QueryString {
-    [CmdletBinding()]
-    param(
-        [parameter(Mandatory=$true,Position=0)] 
-        [string[]] 
-        $Name,
-
-        [parameter(Mandatory=$true,Position=1,ValueFromPipeline=$true)] 
-        [PSTypeName("QueryString")] 
-        $QueryString = (New-QueryString)
-    )
-    Process {
-        $Name | % {
-            $QueryString.Value.GetValues($_)
         }
+        $InputObject
     }
 }
 
 function ConvertTo-QueryString {
     [CmdletBinding()]
     param(
-        [parameter(Mandatory=$true,Position=0,ValueFromPipeline=$true,ParameterSetName="QueryString")] 
-        [PSTypeName("QueryString")] 
-        $QueryString,
-
-        [parameter(Mandatory=$true,Position=0,ValueFromPipeline=$true,ParameterSetName="Hashtable")] 
-        [hashtable] 
+        [parameter(ValueFromPipeline=$true)]
+        [AllowNull()]
+        [AllowEmptyCollection()]
+        [System.Collections.IDictionary]
         $InputObject
     )
-    Begin {
-        $out = @()
+    begin {        
+        $t = @()
     }
-    Process {
-        if($QueryString) {
-            $out += $QueryString.Value.AllKeys | % { 
-			    $key = $_
-			    $QueryString.Value.GetValues($key) | % {
-                    $value = $_
-                    [System.Net.WebUtility]::UrlEncode($key),[System.Net.WebUtility]::UrlEncode($value) -join "=" 
-                }
+    process {
+        if($InputObject -eq $null) { return }
+        foreach($kv in $InputObject.GetEnumerator()) {
+            $key = $kv.Key
+            $list = $kv.Value
+            if(IsEmpty $list) {
+                $list = @( [string]::Empty )
+            } else {
+                $list = $list | Out-String -Stream
             }
-        } elseif($InputObject) {
-            $out += $InputObject.Keys | % { 
-			    $key = $_
-			    $InputObject[$key] | % {
-                    $value = $_
-                    [System.Net.WebUtility]::UrlEncode($key),[System.Net.WebUtility]::UrlEncode($value) -join "=" 
+            foreach($value in $list) {
+                if([string]::IsNullOrEmpty($key)) {
+                    #Write-Host "ConvertTo-QueryString: '$value'"
+                    $t += [System.Net.WebUtility]::UrlEncode($value) 
+                } else {
+                    #Write-Host "ConvertTo-QueryString: '$key'='$value'"
+                    $t += [System.Net.WebUtility]::UrlEncode($key),[System.Net.WebUtility]::UrlEncode($value) -join "="
                 }
             }
         }
     }
-    End {
-        $out -join "&"
+    end {
+        $t -join "&"
+    }
+}
+
+function Select-QueryString {
+    [CmdletBinding()]
+    param(
+        [parameter(Position=1,Mandatory=$true,ValueFromPipeline=$true)]
+        [AllowNull()]
+        [AllowEmptyCollection()]
+        [System.Collections.IDictionary]
+        $InputObject,
+
+        [parameter(Position=0,Mandatory=$true)]
+        [Alias("Name")]
+        [AllowNull()]
+        [AllowEmptyCollection()]
+        [AllowEmptyString()]
+        [string[]]
+        $Key
+    )
+    process {
+        if($InputObject -eq $null) { return }
+        $Key | Out-String -Stream | % { 
+            $list = $InputObject[$_] 
+            if(IsEmpty $list) {
+                [string]::Empty
+            } else {
+                $list
+            }
+        } | Out-String -Stream
     }
 }
 
 function ConvertFrom-QueryString {
     [CmdletBinding()]
     param(
-        [parameter(Mandatory=$true,Position=0,ValueFromPipeline=$true)] 
-        [AllowEmptyString()] 
-        [string] 
-        $Value
+        [parameter(Position=0,Mandatory=$true,ValueFromPipeline=$true)]
+        [AllowNull()]
+        [AllowEmptyString()]
+        [string]
+        $InputObject
     )
-    Begin {
-        Add-Type -AssemblyName "System.Web" -ErrorAction Stop
-        $out = New-QueryString
+    begin {        
+        $t = New-QueryString
     }
-    Process {
-        $out.Value.Add([System.Web.HttpUtility]::ParseQueryString($Value))
+    process {
+        if([string]::IsNullOrEmpty($InputObject)) { return }
+        $InputObject = $InputObject -replace "^[^\?]*\?",""
+        $InputObject -split "&" | % {
+            if($_ -match "^([^=]*)(=(.*))?$") {
+                $key = $Matches[1]
+                $value = $Matches[3]
+                #Write-Host "ConvertFrom-QueryString: Matches.Count = $($Matches.Count)"
+                switch($Matches.Count) {
+                    2 { 
+                        #Write-Host "ConvertFrom-QueryString: ''='$key'"
+                        $t = $t | Add-QueryString -Key ([string]::Empty) -Value $key 
+                    }
+                    4 { 
+                        #Write-Host "ConvertFrom-QueryString: '$key'='$value'"
+                        $t = $t | Add-QueryString -Key $key -Value $value
+                    }
+                }                
+            }
+        }
     }
-    End {
-        return $out
+    end {
+        $t
     }
 }
 

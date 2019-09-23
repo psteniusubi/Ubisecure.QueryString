@@ -1,4 +1,5 @@
-﻿$query = New-QueryString |
+﻿
+$query = New-QueryString |
     Add-QueryString "response_type" "code" |
     Add-QueryString "client_id" "public" |
     Add-QueryString "scope" "openid" |
