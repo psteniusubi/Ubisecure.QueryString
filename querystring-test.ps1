@@ -56,3 +56,13 @@ if($false) {
         }
     }
 }
+
+
+$q = [System.Collections.Specialized.NameValueCollection]::new()
+$q.Add("k", "value1")
+$q.Add("k", "value2")
+(ConvertTo-QueryString -NameValueCollection $q) -eq "k=value1&k=value2"
+
+$q = [System.Collections.Specialized.NameValueCollection]::new()
+$q.Add("k", "value1")
+(Select-QueryString -NameValueCollection $q k) -eq "value1"

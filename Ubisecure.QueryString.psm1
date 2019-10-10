@@ -1,5 +1,6 @@
 function New-QueryString {
     [CmdletBinding()]
+    [OutputType([System.Collections.IDictionary])]
     param(
     )
     process {
@@ -8,6 +9,8 @@ function New-QueryString {
 }
 
 function IsEmpty {
+    [CmdletBinding()]
+    [OutputType([bool])]
     param(
         [Parameter(Position=0,Mandatory=$true)]
         [AllowNull()]
@@ -23,6 +26,8 @@ function IsEmpty {
 }
 
 function ToString {
+    [CmdletBinding()]
+    [OutputType([string])]
     param(
         [Parameter(Position=0,Mandatory=$true,ValueFromPipeline=$true)]
         [AllowNull()]
@@ -46,26 +51,27 @@ function ToString {
 
 function Add-QueryString {
     [CmdletBinding(DefaultParameterSetName="KeyValue")]
+    [OutputType([System.Collections.IDictionary])]
     param(
-        [parameter(Mandatory=$true,Position=2,ValueFromPipeline=$true)]
+        [parameter(Mandatory=$true,ValueFromPipeline=$true)]
         [System.Collections.IDictionary]
         $InputObject = (New-QueryString),
 
-        [parameter(Mandatory=$true,Position=0,ParameterSetName="KeyValue")]
+        [parameter(Mandatory=$true,Position=1,ParameterSetName="KeyValue")]
         [AllowNull()]
         [AllowEmptyString()]
         [Alias("Name")]
         [string]
         $Key,
 
-        [parameter(Mandatory=$true,Position=1,ParameterSetName="KeyValue")]
+        [parameter(Mandatory=$true,Position=2,ParameterSetName="KeyValue")]
         [AllowNull()]
         [AllowEmptyString()]
         [AllowEmptyCollection()]
         [string[]]
         $Value,
 
-        [parameter(Mandatory=$true,Position=0,ParameterSetName="Values")]
+        [parameter(Mandatory=$true,Position=1,ParameterSetName="Values")]
         [System.Collections.IDictionary]
         $Values
     )
@@ -106,34 +112,61 @@ function Add-QueryString {
 }
 
 function ConvertTo-QueryString {
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName="IDictionary")]
+    [OutputType([string])]
     param(
-        [parameter(ValueFromPipeline=$true)]
+        [parameter(Mandatory=$true,Position=0,ValueFromPipeline=$true,ParameterSetName="IDictionary")]
         [AllowNull()]
         [AllowEmptyCollection()]
         [System.Collections.IDictionary]
-        $InputObject
+        $InputObject,
+
+        [parameter(Mandatory=$true,Position=0,ParameterSetName="NameValueCollection")]
+        [AllowNull()]
+        [AllowEmptyCollection()]
+        [System.Collections.Specialized.NameValueCollection]
+        $NameValueCollection
     )
     begin {        
         $t = @()
     }
     process {
-        if($InputObject -eq $null) { return }
-        foreach($kv in $InputObject.GetEnumerator()) {
-            $key = $kv.Key
-            $list = $kv.Value
-            if(IsEmpty $list) {
-                $list = @( [string]::Empty )
-            } else {
-                $list = $list | ToString 
-            }
-            foreach($value in $list) {
-                if([string]::IsNullOrEmpty($key)) {
-                    #Write-Host "ConvertTo-QueryString: '$value'"
-                    $t += [System.Net.WebUtility]::UrlEncode($value) 
+        if($InputObject -ne $null) { 
+            foreach($kv in $InputObject.GetEnumerator()) {
+                $key = $kv.Key
+                $list = $kv.Value
+                if(IsEmpty $list) {
+                    $list = @( [string]::Empty )
                 } else {
-                    #Write-Host "ConvertTo-QueryString: '$key'='$value'"
-                    $t += [System.Net.WebUtility]::UrlEncode($key),[System.Net.WebUtility]::UrlEncode($value) -join "="
+                    $list = $list | ToString 
+                }
+                foreach($value in $list) {
+                    if([string]::IsNullOrEmpty($key)) {
+                        #Write-Host "ConvertTo-QueryString: '$value'"
+                        $t += [System.Net.WebUtility]::UrlEncode($value) 
+                    } else {
+                        #Write-Host "ConvertTo-QueryString: '$key'='$value'"
+                        $t += [System.Net.WebUtility]::UrlEncode($key),[System.Net.WebUtility]::UrlEncode($value) -join "="
+                    }
+                }
+            }
+        }
+        if($NameValueCollection -ne $null) { 
+            foreach($key in $NameValueCollection.AllKeys) {
+                $list = $NameValueCollection.GetValues($key)
+                if(IsEmpty $list) {
+                    $list = @( [string]::Empty )
+                } else {
+                    $list = $list | ToString 
+                }
+                foreach($value in $list) {
+                    if([string]::IsNullOrEmpty($key)) {
+                        #Write-Host "ConvertTo-QueryString: '$value'"
+                        $t += [System.Net.WebUtility]::UrlEncode($value) 
+                    } else {
+                        #Write-Host "ConvertTo-QueryString: '$key'='$value'"
+                        $t += [System.Net.WebUtility]::UrlEncode($key),[System.Net.WebUtility]::UrlEncode($value) -join "="
+                    }
                 }
             }
         }
@@ -144,15 +177,22 @@ function ConvertTo-QueryString {
 }
 
 function Select-QueryString {
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName="IDictionary")]
+    [OutputType([string])]
     param(
-        [parameter(Position=1,Mandatory=$true,ValueFromPipeline=$true)]
+        [parameter(Mandatory=$true,ValueFromPipeline=$true,ParameterSetName="IDictionary")]
         [AllowNull()]
         [AllowEmptyCollection()]
         [System.Collections.IDictionary]
         $InputObject,
 
-        [parameter(Position=0,Mandatory=$true)]
+        [parameter(Mandatory=$true,ParameterSetName="NameValueCollection")]
+        [AllowNull()]
+        [AllowEmptyCollection()]
+        [System.Collections.Specialized.NameValueCollection]
+        $NameValueCollection,
+
+        [parameter(Position=1,Mandatory=$true)]
         [Alias("Name")]
         [AllowNull()]
         [AllowEmptyCollection()]
@@ -161,22 +201,34 @@ function Select-QueryString {
         $Key
     )
     process {
-        if($InputObject -eq $null) { return }
-        $Key | ToString | % { 
-            $list = $InputObject[$_] 
-            if(IsEmpty $list) {
-                [string]::Empty
-            } else {
-                $list
-            }
-        } | ToString 
+        if($InputObject -ne $null) { 
+            $Key | ToString | % { 
+                $list = $InputObject[$_] 
+                if(IsEmpty $list) {
+                    [string]::Empty
+                } else {
+                    $list
+                }
+            } | ToString 
+        }
+        if($NameValueCollection -ne $null) { 
+            $Key | ToString | % { 
+                $list = $NameValueCollection.GetValues($_)
+                if(IsEmpty $list) {
+                    [string]::Empty
+                } else {
+                    $list
+                }
+            } | ToString 
+        }
     }
 }
 
 function ConvertFrom-QueryString {
     [CmdletBinding()]
+    [OutputType([System.Collections.IDictionary])]
     param(
-        [parameter(Position=0,Mandatory=$true,ValueFromPipeline=$true)]
+        [parameter(Mandatory=$true,Position=0,ValueFromPipeline=$true)]
         [AllowNull()]
         [AllowEmptyString()]
         [string]
