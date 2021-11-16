@@ -16,4 +16,7 @@ Describe "ConvertTo-QueryString" {
         @{"k"=@("")} | ConvertTo-QueryString | Should -Be "k="
         @{"k"=@("","")} | ConvertTo-QueryString | Should -Be "k=&k="
     }
+    It "Encoding" {
+        New-QueryString | Add-QueryString "key" "+" | ConvertTo-QueryString | Should -Be "key=%2B"
+    }
 }
