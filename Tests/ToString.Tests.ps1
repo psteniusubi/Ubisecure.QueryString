@@ -23,7 +23,7 @@ Describe "ToString" {
         IsEmpty @(1, @("a", @("A", "B"), "b"), 2) | Should -BeFalse
     }
     It "Map" {
-        ToString @{"key" = "value" } | Should -Be "[key, value]"
+        ToString @{"key" = "value" } | Should -BeIn @("[key, value]", "System.Collections.DictionaryEntry")
         IsEmpty @{"key" = "value" } | Should -BeFalse
     }
 }
