@@ -1,41 +1,17 @@
-function IsEmpty {
-    [CmdletBinding()]
-    [OutputType([bool])]
-    param(
-        [Parameter(Position=0,Mandatory=$true)]
-        [AllowNull()]
-        [object]
-        $InputObject
-    )
-    process {
-        if($InputObject -eq $null) { return $true }
-        if($InputObject -is [string]) { return $false }
-        if($InputObject -is [System.Collections.IEnumerable]) { return -not $InputObject.GetEnumerator().MoveNext() }
-        return $false
-    }
-}
+# module script files
+$files = @(
+    "private/IsEmpty.ps1"
+    "private/ToString.ps1"
+    "Add-QueryString.ps1"
+    "ConvertFrom-QueryString.ps1"
+    "ConvertTo-QueryString.ps1"
+    "New-QueryString.ps1"
+    "Select-QueryString.ps1"
+)
 
-function ToString {
-    [CmdletBinding()]
-    [OutputType([string])]
-    param(
-        [Parameter(Position=0,Mandatory=$true,ValueFromPipeline=$true)]
-        [AllowNull()]
-        [AllowEmptyString()]
-        [AllowEmptyCollection()]
-        [object]
-        $InputObject
-    )
-    process {
-        if($InputObject -eq $null) { return }
-        elseif($InputObject -is [string]) { return $InputObject }
-        elseif($InputObject -is [System.Collections.IEnumerable]) { 
-            foreach($i in $InputObject.GetEnumerator()) {
-                $i | ToString
-            }
-            return
-        }
-        else { return $InputObject.ToString() }
-    }
+# dot source script files
+foreach ($i in $files) {
+    $p = Join-Path -Path $PSScriptRoot -ChildPath $i -Resolve -ErrorAction Stop
+    # $p | Write-Host -ForegroundColor Yellow
+    . $p
 }
-

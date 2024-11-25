@@ -4,6 +4,7 @@ function New-QueryString {
     param(
     )
     process {
-        [System.Collections.Specialized.OrderedDictionary]::new()
+        $t = [System.Collections.Specialized.OrderedDictionary]::new()
+        $PSCmdlet.WriteObject($t, $false)
     }
 }

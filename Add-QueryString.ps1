@@ -1,62 +1,60 @@
 function Add-QueryString {
-    [CmdletBinding(DefaultParameterSetName="KeyValue")]
+    [CmdletBinding(DefaultParameterSetName = "KeyValue")]
     [OutputType([System.Collections.IDictionary])]
     param(
-        [parameter(Mandatory=$true,ValueFromPipeline=$true)]
+        [parameter(Mandatory = $true, ValueFromPipeline = $true)]
         [System.Collections.IDictionary]
-        $InputObject = (New-QueryString),
+        $InputObject,
 
-        [parameter(Mandatory=$true,Position=1,ParameterSetName="KeyValue")]
+        [parameter(Mandatory = $true, Position = 1, ParameterSetName = "KeyValue")]
         [AllowNull()]
         [AllowEmptyString()]
         [Alias("Name")]
         [string]
         $Key,
 
-        [parameter(Mandatory=$true,Position=2,ParameterSetName="KeyValue")]
+        [parameter(Mandatory = $true, Position = 2, ParameterSetName = "KeyValue")]
         [AllowNull()]
         [AllowEmptyString()]
         [AllowEmptyCollection()]
         [string[]]
         $Value,
 
-        [parameter(Mandatory=$true,Position=1,ParameterSetName="Values")]
+        [parameter(Mandatory = $true, Position = 1, ParameterSetName = "Values")]
         [System.Collections.IDictionary]
         $Values
     )
     process {
-        switch($PSCmdlet.ParameterSetName) {
+        switch ($PSCmdlet.ParameterSetName) {
             "KeyValue" {
                 #Write-Host "Add-QueryString: '$Key'='$Value'"
                 $list = [System.Collections.ArrayList]::new()
-                if(-not (IsEmpty $InputObject[$Key])) {
-                    $InputObject[$Key] | ToString | % { 
-                        #Write-Host "InputObject: list.Add($_)"
-                        $null = $list.Add($_) 
-                    }
+                foreach ($i in (ToString $InputObject[$key])) {
+                    #Write-Host "InputObject: list.Add($i)"
+                    $null = $list.Add($i)
                 }
-                if(-not (IsEmpty $Value)) {
-                    $Value | ToString | % { 
-                        #Write-Host "Value: list.Add($_)"
-                        $null = $list.Add($_) 
-                    }
+                foreach ($i in (ToString $Value)) {
+                    #Write-Host "InputObject: list.Add($i)"
+                    $null = $list.Add($i)
                 }
                 $InputObject[$Key] = $list
             }
             "Values" {
-                foreach($kv in $Values.GetEnumerator()) {
-                    $key = $kv.Key
-                    $list = $kv.Value
-                    if(IsEmpty $list) {
-                        $list = @()
-                    } else {
-                        $list = $list | ToString 
+                foreach ($kv in $Values.GetEnumerator()) {                    
+                    $keys = ToString $kv.Key
+                    if (IsEmpty $keys) {
+                        $keys = [string]::Empty
                     }
-                    $InputObject = $InputObject | Add-QueryString -Key $key -Value $list
+                    foreach ($key in $keys) {
+                        $list = ToString $kv.Value
+                        if (IsEmpty $list) {                            
+                            $list = [string]::Empty
+                        }
+                        $InputObject = $InputObject | Add-QueryString -Key $key -Value $list
+                    }
                 }
             }
         }
-        $InputObject
+        $PSCmdlet.WriteObject($InputObject, $false)        
     }
 }
-

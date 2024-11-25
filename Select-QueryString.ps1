@@ -1,20 +1,20 @@
 function Select-QueryString {
-    [CmdletBinding(DefaultParameterSetName="IDictionary")]
+    [CmdletBinding(DefaultParameterSetName = "IDictionary")]
     [OutputType([string])]
     param(
-        [parameter(Mandatory=$true,ValueFromPipeline=$true,ParameterSetName="IDictionary")]
+        [parameter(Mandatory = $true, ValueFromPipeline = $true, ParameterSetName = "IDictionary")]
         [AllowNull()]
         [AllowEmptyCollection()]
         [System.Collections.IDictionary]
         $InputObject,
 
-        [parameter(Mandatory=$true,ParameterSetName="NameValueCollection")]
+        [parameter(Mandatory = $true, ParameterSetName = "NameValueCollection")]
         [AllowNull()]
         [AllowEmptyCollection()]
         [System.Collections.Specialized.NameValueCollection]
         $NameValueCollection,
 
-        [parameter(Position=1,Mandatory=$true)]
+        [parameter(Position = 1, Mandatory = $true)]
         [Alias("Name")]
         [AllowNull()]
         [AllowEmptyCollection()]
@@ -23,26 +23,27 @@ function Select-QueryString {
         $Key
     )
     process {
-        if($InputObject -ne $null) { 
-            $Key | ToString | % { 
-                $list = $InputObject[$_] 
-                if(IsEmpty $list) {
-                    [string]::Empty
-                } else {
-                    $list
+        if ($InputObject -ne $null) { 
+            foreach ($i in (ToString $Key)) {
+                $list = $InputObject[$i]
+                if (IsEmpty $list) {
+                    $PSCmdlet.WriteObject([string]::Empty, $false)
                 }
-            } | ToString 
+                else {
+                    ToString $list
+                }
+            }
         }
-        if($NameValueCollection -ne $null) { 
-            $Key | ToString | % { 
-                $list = $NameValueCollection.GetValues($_)
-                if(IsEmpty $list) {
-                    [string]::Empty
-                } else {
-                    $list
+        if ($NameValueCollection -ne $null) { 
+            foreach ($i in (ToString $Key)) {
+                $list = $NameValueCollection.GetValues($i)
+                if (IsEmpty $list) {
+                    $PSCmdlet.WriteObject([string]::Empty, $false)
                 }
-            } | ToString 
+                else {
+                    ToString $list
+                }
+            }
         }
     }
 }
-
